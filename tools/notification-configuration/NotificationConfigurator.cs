@@ -28,8 +28,11 @@ namespace NotificationConfiguration
             var pipelines = await service.GetScheduledPipelinesAsync(projectName, projectPath);
             var teams = await service.GetTeamsAsync(projectName);
 
+            var progressCounter = 0;
+
             foreach (var pipeline in pipelines)
             {
+                progressCounter++;
                 using (logger.BeginScope("Evaluate Pipeline Name = {0}, Path = {1}, Id = {2}", pipeline.Name, pipeline.Path, pipeline.Id))
                 {
                     var parentTeam = await EnsureTeamExists(pipeline, "Notifications", TeamPurpose.ParentNotificationTeam, teams, persistChanges);
@@ -46,6 +49,8 @@ namespace NotificationConfiguration
                     await EnsureScheduledBuildFailSubscriptionExists(pipeline, parentTeam, persistChanges);
                 }
             }
+
+            logger.LogInformation("Pipeline Processing Complete TotalPipelines = {0}, ProcessedPipelines = {1}", pipelines.Count(), progressCounter);
         }
 
         private async Task<WebApiTeam> EnsureTeamExists(
