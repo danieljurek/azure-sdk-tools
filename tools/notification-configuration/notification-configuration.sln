@@ -9,6 +9,8 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "common", "common\common.csp
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "github-codeowner-subscriber", "github-codeowner-subscriber\github-codeowner-subscriber.csproj", "{70BE6FEC-1AE2-44B1-B7D4-824A4A7C3BBD}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "PipelineBulkEditor", "pipeline-bulk-editor\PipelineBulkEditor.csproj", "{87CE44DE-BF17-470A-9EC3-6FDEDD8F7462}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -27,6 +29,10 @@ Global
 		{70BE6FEC-1AE2-44B1-B7D4-824A4A7C3BBD}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{70BE6FEC-1AE2-44B1-B7D4-824A4A7C3BBD}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{70BE6FEC-1AE2-44B1-B7D4-824A4A7C3BBD}.Release|Any CPU.Build.0 = Release|Any CPU
+		{87CE44DE-BF17-470A-9EC3-6FDEDD8F7462}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{87CE44DE-BF17-470A-9EC3-6FDEDD8F7462}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{87CE44DE-BF17-470A-9EC3-6FDEDD8F7462}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{87CE44DE-BF17-470A-9EC3-6FDEDD8F7462}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
