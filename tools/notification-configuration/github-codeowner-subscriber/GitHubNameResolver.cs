@@ -68,7 +68,7 @@ namespace GitHubCodeownerSubscriber
         /// <returns>Internal alias or null if no internal user found</returns>
         public async Task<string> GetInternalUserPrincipal(string githubUserName)
         {
-            var query = $"{kustoTable} | where githubUserName == '{githubUserName}' | project aadUpn | limit 1;";
+            var query = $"{kustoTable} | where githubUserName =~ '{githubUserName}' | project aadUpn | limit 1;";
 
             // TODO: Figure out how to make this async
             using (var reader = client.ExecuteQuery(query))
