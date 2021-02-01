@@ -13,7 +13,7 @@ Components: Major.Minor.Patch-PrereleaseLabel.PrereleaseNumber.BuildNumber
 Note: A builtin Powershell version of SemVer exists in 'System.Management.Automation'. At this time, it does not parsing of PrereleaseNumber. It's name is also type accelerated to 'SemVer'.
 #>
 
-class AzureEngSemanticVersion {
+class AzureEngSemanticVersion : System.IComparable {
   [int] $Major
   [int] $Minor
   [int] $Patch
@@ -177,6 +177,67 @@ class AzureEngSemanticVersion {
     $this.DefaultAlphaReleaseLabel = "alpha"
   }
 
+  [int] CompareTo($that) {
+    # Compare major, minor, patch values
+    if ($this.Major -ne $that.Major) { 
+      return $this.Major - $that.Major
+    } elseif ($this.Minor -ne $that.Minor) { 
+      return $this.Minor - $that.Minor
+    } elseif ($this.Patch -ne $that.Patch) { 
+      return $this.Patch - $that.Patch 
+    }
+
+    # If either is prerelease
+    if ($this.IsPrerelease -or $that.IsPrerelease) { 
+
+      # If both are prerelease
+      if ($this.IsPrerelease -and $that.IsPrerelease) { 
+        if ($this.PrereleaseLabel -gt $that.PrereleaseLabel) { 
+          # 1.0.0-beta.1 > 1.0.0-alpha.1
+          return 1
+        } elseif ($this.PrereleaseLabel -lt $that.PrereleaseLabel) {
+          # 1.0.0-alpha.1 < 1.0.0-beta.1
+          return -1
+        }
+
+        $prereleaseComparison = $this.PrereleaseNumber - $that.PrereleaseNumber
+
+        if ($prereleaseComparison -ne 0) { 
+          return $prereleaseComparison
+        }
+
+        $buildNumberComparison = [AzureEngSemanticVersion]::CompareBuildNumbers($this.BuildNumber, $that.BuildNumber)
+
+        return $buildNumberComparison
+
+      } elseif ($this.IsPrerelease) {
+        # The logic inverts here because 1.0.0-alpha.1 is less than 1.0.0
+        return -1 
+      } else { 
+        # The logic inverts here because 1.0.0 is greater than 1.0.0-alpha.1
+        return 1
+      }
+    }
+
+    return 0
+  }
+
+  static [int] CompareBuildNumbers($left, $right) { 
+    if ($null -ne $left -and $null -ne $right) { 
+      # If $left and $right have values
+      return [int]$left - [int]$right
+    } elseif ($null -ne $left) { 
+      # 1.0.0-beta.1.01 > 1.0.0-beta.1
+      return 1
+    } elseif ($null -ne $right) { 
+      # 1.0.0-beta.1 < 1.0.0-beta.1.01
+      return -1 
+    }
+
+    # $left and $right are both $null
+    return 0
+  }
+ 
   static [string[]] SortVersionStrings([string[]] $versionStrings)
   {
     $versions = $versionStrings | ForEach-Object { [AzureEngSemanticVersion]::ParseVersionString($_) }
@@ -186,10 +247,7 @@ class AzureEngSemanticVersion {
 
   static [AzureEngSemanticVersion[]] SortVersions([AzureEngSemanticVersion[]] $versions)
   {
-    return ($versions | `
-            Sort-Object -Descending -Property `
-              Major, Minor, Patch, PrereleaseLabel, PrereleaseNumber, `
-              @{ Expression = { [int]$_.BuildNumber }; Descending = $true })
+    return ($versions | Sort-Object -Descending)
   }
 
   static [void] QuickTests()
@@ -240,6 +298,23 @@ class AzureEngSemanticVersion {
         Write-Host $expectedSort
         Write-Host "Actual:"
         Write-Host $sort
+        break
+      }
+    }
+
+    Write-Host $versions
+    $sortIComparable = $versions `
+      | ForEach-Object { [AzureEngSemanticVersion]::ParseVersionString($_) } `
+      | Sort-Object -Descending
+
+    for ($i = 0; $i -lt $expectedSort.Count; $i++)
+    {
+      if ($sortIComparable[$i].ToString() -ne $expectedSort[$i]) { 
+        Write-Host "Error: Incorrect version sort:"
+        Write-Host "Expected: "
+        $expectedSort | ForEach-Object { $_.ToString() } | Format-List | Out-String | Write-Host
+        Write-Host "Actual:"
+        $sortIComparable | ForEach-Object { $_.ToString() } | Format-List | Out-String | Write-Host
         break
       }
     }

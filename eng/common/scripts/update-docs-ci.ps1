@@ -34,6 +34,7 @@ param (
 
 $targets = ($Configs | ConvertFrom-Json).targets
 
+# $Configs target layout: 
 #{
 # path_to_config:
 # mode:
@@ -42,29 +43,58 @@ $targets = ($Configs | ConvertFrom-Json).targets
 # suffix:
 #}
 
+
+# Creates variables representing latest and preview modes. $Configs should have
+# only one of each.
+$latestMode = $targets | Where-Object { $_.Mode -eq "Latest" }
+$previewMode = $targets | Where-Object { $_.Mode -eq "Preview" }
+
+if (($latestMode | Measure-Object).Count -ne 1 `
+  -or ($previewMode | Measure-Object).Count -ne 1) { 
+  Write-Error '$Configs contains invalid definition of "Latest" or "Preview" modes'
+} 
+
 $apiUrl = "https://api.github.com/repos/$repoId"
 $pkgs = VerifyPackages -artifactLocation $ArtifactLocation `
   -workingDirectory $WorkDirectory `
   -apiUrl $apiUrl `
   -continueOnError $True 
 
-foreach ($config in $targets) {
-  if ($config.mode -eq "Preview") { $includePreview = $true } else { $includePreview = $false }
-  $pkgsFiltered = $pkgs | ? { $_.IsPrerelease -eq $includePreview}
+# Transition from per-target config logic to logic which can handle multiple 
+# modes (e.g. preview and legacy)
 
-  if ($pkgsFiltered) {
-    Write-Host "Given the visible artifacts, CI updates against $($config.path_to_config) will be processed for the following packages."
-    Write-Host ($pkgsFiltered | % { $_.PackageId + " " + $_.PackageVersion })
+# Preview packages must have a prerlease version AND supersede all previously 
+# published packages
+$previewPackages = $pkgs `
+  | Where-Object { $_.IsPrerelease -eq $true } `
+  | Where-Object { &$PackageSupersedesAllPublished($_) }
+$latestPackages = $pkgs | Where-Object { $_.IsPrerelease -ne $true }
 
-    if ($UpdateDocCIFn -and (Test-Path "Function:$UpdateDocCIFn"))
-    {
-      &$UpdateDocCIFn -pkgs $pkgsFiltered -ciRepo $DocRepoLocation -locationInDocRepo $config.path_to_config -monikerId $config.monikerid
-    }
-    else
-    {
-      LogWarning "The function for '$UpdateDocCIFn' was not found.`
-      Make sure it is present in eng/scripts/Language-Settings.ps1 and referenced in eng/common/scripts/common.ps1.`
-      See https://github.com/Azure/azure-sdk-tools/blob/master/doc/common/common_engsys.md#code-structure"
-    }
-  }
-}
+Write-Host "Preview Packages:"
+$previewPackages | Format-List -Property PackageId, PackageVersion 
+Write-Host "Latest Packages:"
+$latestPackages | Format-List -Property PackageId, PackageVersion 
+
+# Update CI configs for GA packages
+&$UpdateDocCIFn `
+  -pkgs $latestPackages `
+  -ciRepo $DocRepoLocation `
+  -locationInDocRepo $latestMode.path_to_config `
+  -monikerId $latestMode.monikerid
+
+# Update CI configs for preview packages
+&$UpdateDocCIFn `
+  -pkgs $previewPackages `
+  -ciRepo $DocRepoLocation `
+  -locationInDocRepo $previewMode.path_to_config `
+  -monikerId $previewMode.monikerid
+
+# Remove GA package if GA is greater than existing preview (e.g. GA: 1.1.0 >= Preview: 1.0.1-beta.1)
+# Also: Do NOT remove if GA package is less than preview (e.g. GA: 1.1.0 < Preview: 2.0.0-beta.1)
+&$UpdateDocMonikerCIFn `
+  -SupersedingPackages $latestPackages `
+  -CiConfigLocation (Join-Path $DocRepoLocation $previewMode.path_to_config)
+
+
+
+
